@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial IoT Platform | Brunno Bachmann</title>
+    <style>
+        :root { --primary: #d35400; --dark: #1a1a2e; --light: #f4f4f4; --text: #333; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--light); color: var(--text); line-height: 1.6; }
+        header { background: linear-gradient(135deg, var(--dark), var(--primary)); color: white; padding: 4rem 2rem; text-align: center; }
+        header h1 { margin: 0; font-size: 2.5rem; }
+        header p { max-width: 600px; margin: 1rem auto 0; font-size: 1.1rem; opacity: 0.9; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .section { background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .section h2 { color: var(--primary); margin-top: 0; }
+        .badges { margin: 1rem 0; }
+        .badge { display: inline-block; background: var(--primary); color: white; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+        .btn { display: inline-block; background: var(--primary); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1rem; }
+        .btn:hover { background: #b44600; }
+        footer { text-align: center; padding: 2rem; color: #666; font-size: 0.9rem; }
+        code { background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
+        pre { background: #f0f0f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📡 Industrial IoT Platform</h1>
+        <p>Industrial IoT data platform for sensor monitoring, analytics and alerting — designed for biogas plants, manufacturing and energy operations.</p>
+        <a href="https://github.com/Brunnobach/industrial-iot-platform" class="btn">View on GitHub</a>
+    </header>
+
+    <div class="container">
+        <div class="section">
+            <h2>What this project demonstrates</h2>
+            <div class="badges">
+                <span class="badge">MQTT</span>
+                <span class="badge">InfluxDB</span>
+                <span class="badge">FastAPI</span>
+                <span class="badge">Grafana</span>
+                <span class="badge">Docker</span>
+                <span class="badge">Time-Series</span>
+            </div>
+            <p>A complete end-to-end IoT system: simulated sensors publish data via MQTT, a time-series database stores it, a FastAPI service provides queries and alerts, and Grafana visualizes everything.</p>
+        </div>
+
+        <div class="section">
+            <h2>Architecture</h2>
+            <pre>
+Sensors (simulated) → MQTT Broker → InfluxDB → FastAPI → Grafana Dashboard + Alerts
+            </pre>
+        </div>
+
+        <div class="section">
+            <h2>Quick Start</h2>
+            <pre><code>git clone https://github.com/Brunnobach/industrial-iot-platform.git
+cd industrial-iot-platform
+docker-compose up -d</code></pre>
+            <p>Then access Grafana at <code>http://localhost:3000</code> and API docs at <code>http://localhost:8000/docs</code>.</p>
+        </div>
+
+        <div class="section">
+            <h2>About the author</h2>
+            <p>Built by <strong>Brunno Bachmann</strong>, CTO and engineering leader with 6+ years in renewable energy, now building industrial data systems.</p>
+            <a href="https://www.linkedin.com/in/brunno-bachmann-865429173">LinkedIn</a> · 
+            <a href="https://github.com/Brunnobach">GitHub</a>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 Brunno Bachmann · <a href="https://github.com/Brunnobach/industrial-iot-platform">GitHub Repository</a></p>
+    </footer>
+</body>
+</html>
