@@ -1,19 +1,30 @@
+"""Simulator that generates random telemetry readings for virtual sensors
+and publishes them to an MQTT broker.
+"""
+
 import json
 import logging
 import os
 import random
 import time
+from typing import Any, Dict
 
 import paho.mqtt.client as mqtt
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# Setup logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
+# MQTT network configurations
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "factory/sensors")
 INTERVAL = float(os.getenv("SIM_INTERVAL", "1.0"))
 
+# Sensor configurations (mean baseline value and standard deviation variance)
 SENSORS = [
     {"id": "sensor_001", "type": "temperature", "unit": "celsius", "base": 75.0, "var": 5.0},
     {"id": "sensor_002", "type": "pressure", "unit": "bar", "base": 2.5, "var": 0.2},
@@ -23,7 +34,15 @@ SENSORS = [
 ]
 
 
-def build_payload(sensor):
+def build_payload(sensor: Dict[str, Any]) -> Dict[str, Any]:
+    """Generates a mock telemetry reading payload for a sensor using a Gaussian distribution.
+
+    Args:
+        sensor: Dictionary containing sensor specifications (id, type, base, var, unit).
+
+    Returns:
+        Dict[str, Any]: Payload dictionary with telemetry reading.
+    """
     value = round(random.gauss(sensor["base"], sensor["var"]), 3)
     return {
         "sensor_id": sensor["id"],
@@ -34,11 +53,13 @@ def build_payload(sensor):
     }
 
 
-def main():
+def main() -> None:
+    """Connects to the MQTT broker and starts the telemetry generation loop."""
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="sensor-simulator")
+    logger.info("Connecting simulator to MQTT broker at %s:%d", MQTT_HOST, MQTT_PORT)
     client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
     client.loop_start()
-    logger.info("Sensor simulator connected to %s:%d", MQTT_HOST, MQTT_PORT)
+    logger.info("Simulator connected. Telemetry interval set to %s second(s).", INTERVAL)
 
     try:
         while True:
@@ -46,14 +67,16 @@ def main():
                 payload = build_payload(sensor)
                 topic = f"{TOPIC_PREFIX}/{sensor['type']}/{sensor['id']}"
                 client.publish(topic, json.dumps(payload), qos=1)
-                logger.debug("Published to %s: %s", topic, payload)
+                logger.debug("Published to topic '%s': %s", topic, payload)
             time.sleep(INTERVAL)
     except KeyboardInterrupt:
-        logger.info("Shutting down simulator")
+        logger.info("Termination signal received. Shutting down simulator.")
     finally:
         client.loop_stop()
         client.disconnect()
+        logger.info("Simulator stopped.")
 
 
 if __name__ == "__main__":
     main()
+

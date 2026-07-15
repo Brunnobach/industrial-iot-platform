@@ -10,6 +10,11 @@ services:
       - mosquitto_data:/mosquitto/data
     networks:
       - iiot_network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/version", "-C", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   influxdb:
     image: influxdb:2.7-alpine
@@ -32,6 +37,11 @@ services:
       - influxdb_data:/var/lib/influxdb2
     networks:
       - iiot_network
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   grafana:
     image: grafana/grafana:10.4.9
@@ -51,7 +61,8 @@ services:
     networks:
       - iiot_network
     depends_on:
-      - influxdb
+      influxdb:
+        condition: service_healthy
 
   ingestion:
     build: .
@@ -67,8 +78,10 @@ services:
     networks:
       - iiot_network
     depends_on:
-      - mosquitto
-      - influxdb
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
 
   api:
     build: .
@@ -85,8 +98,10 @@ services:
     networks:
       - iiot_network
     depends_on:
-      - mosquitto
-      - influxdb
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
 
   simulator:
     build: .
@@ -99,7 +114,8 @@ services:
     networks:
       - iiot_network
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
 
 volumes:
   influxdb_data:

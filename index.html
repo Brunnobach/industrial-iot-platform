@@ -1,73 +1,1628 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Industrial IoT Platform | Brunno Bachmann</title>
+    <title>Painel Industrial IoT | Monitoramento em Tempo Real</title>
+    <!-- Fontes Modernas -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons para Ícones Premium -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js para Análise Gráfica -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Paho MQTT via WebSockets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+
     <style>
-        :root { --primary: #d35400; --dark: #1a1a2e; --light: #f4f4f4; --text: #333; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--light); color: var(--text); line-height: 1.6; }
-        header { background: linear-gradient(135deg, var(--dark), var(--primary)); color: white; padding: 4rem 2rem; text-align: center; }
-        header h1 { margin: 0; font-size: 2.5rem; }
-        header p { max-width: 600px; margin: 1rem auto 0; font-size: 1.1rem; opacity: 0.9; }
-        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-        .section { background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .section h2 { color: var(--primary); margin-top: 0; }
-        .badges { margin: 1rem 0; }
-        .badge { display: inline-block; background: var(--primary); color: white; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
-        .btn { display: inline-block; background: var(--primary); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1rem; }
-        .btn:hover { background: #b44600; }
-        footer { text-align: center; padding: 2rem; color: #666; font-size: 0.9rem; }
-        code { background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
-        pre { background: #f0f0f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+        :root {
+            --bg-gradient: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 70%, #020617 100%);
+            --panel-bg: rgba(30, 41, 59, 0.45);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            /* Cores dos Sensores */
+            --color-temp: #f97316;    /* Laranja */
+            --color-press: #06b6d4;   /* Cyan */
+            --color-ph: #10b981;      /* Esmeralda */
+            --color-flow: #3b82f6;    /* Azul */
+            --color-vib: #8b5cf6;     /* Roxo */
+            
+            --color-danger: #ef4444;  /* Vermelho Alerta */
+            --color-success: #22c55e; /* Verde Saudável */
+            --color-warning: #eab308; /* Amarelo */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background: #020617;
+            background-image: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.5;
+            padding-bottom: 3rem;
+            overflow-x: hidden;
+        }
+
+        /* Layout Grid */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Header Premium */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: var(--panel-glow);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.025em;
+        }
+
+        .header-title .tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Toggle de Modo */
+        .mode-selector {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--panel-border);
+            border-radius: 9999px;
+            padding: 0.25rem;
+            position: relative;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 9999px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mode-btn.active {
+            background: #38bdf8;
+            color: #0f172a;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--panel-border);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-danger);
+            position: relative;
+        }
+
+        .status-dot.online {
+            background: var(--color-success);
+            box-shadow: 0 0 8px var(--color-success);
+        }
+
+        .status-dot.simulating {
+            background: var(--color-warning);
+            box-shadow: 0 0 8px var(--color-warning);
+        }
+
+        /* Grid de Sensores */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Cartão de Sensor Premium */
+        .sensor-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--panel-glow);
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Borda decorativa colorida para cada sensor */
+        .sensor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--theme-color, var(--text-muted));
+            opacity: 0.8;
+        }
+
+        .sensor-card.alert-breach {
+            animation: pulse-border 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+            100% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+        }
+
+        .sensor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .sensor-info h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .sensor-info .sensor-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #38bdf8;
+            margin-top: 0.1rem;
+        }
+
+        .sensor-icon-wrapper {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--theme-color);
+        }
+
+        .sensor-value-container {
+            margin: 1rem 0;
+            display: flex;
+            align-items: baseline;
+            gap: 0.25rem;
+        }
+
+        .sensor-value {
+            font-size: 2.25rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.2s ease;
+        }
+
+        .sensor-unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Sparkline (Mini Gráfico) */
+        .sensor-sparkline {
+            width: 100%;
+            height: 45px;
+            margin-top: auto;
+        }
+
+        .sensor-sparkline path {
+            stroke: var(--theme-color);
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .sensor-sparkline .sparkline-gradient {
+            fill: url(#sparkline-grad);
+        }
+
+        .sensor-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 0.75rem;
+        }
+
+        .sensor-status {
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .status-ok { color: var(--color-success); }
+        .status-alert { color: var(--color-danger); }
+
+        /* Layout em duas colunas para painéis */
+        .dashboard-body {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .dashboard-body {
+                grid-template-columns: 350px 1fr;
+            }
+        }
+
+        /* Painel Base */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--panel-glow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.75rem;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-main);
+        }
+
+        /* Painel de Alertas e Limites */
+        .threshold-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .threshold-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+        }
+
+        .threshold-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .threshold-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .threshold-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+            transition: transform 0.1s ease;
+        }
+
+        .threshold-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .threshold-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            width: 60px;
+            text-align: right;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* Logs / Console Terminal */
+        .terminal-container {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .terminal-logs {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #10b981;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding-right: 0.5rem;
+        }
+
+        /* Scrollbar customizada para terminal */
+        .terminal-logs::-webkit-scrollbar {
+            width: 6px;
+        }
+        .terminal-logs::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .terminal-logs::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .log-time {
+            color: #64748b;
+            flex-shrink: 0;
+        }
+
+        .log-info { color: #38bdf8; }
+        .log-warn { color: var(--color-warning); }
+        .log-error { color: var(--color-danger); }
+        .log-text { word-break: break-all; }
+
+        /* Gráfico e Abas de Documentação */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 0.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.08);
+            box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.25);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Histórico de Gráfico */
+        .chart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.3);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .chart-select {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.5rem 1.5rem 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-query {
+            background: #38bdf8;
+            color: #020617;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-query:hover {
+            background: #0ea5e9;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+
+        /* Documentação / Arquitetura */
+        .doc-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            color: #cbd5e1;
+        }
+
+        .doc-section h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tech-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        .tech-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .tech-card strong {
+            color: #38bdf8;
+            font-size: 0.95rem;
+        }
+
+        .tech-card span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .code-block {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            color: #e2e8f0;
+        }
+
+        /* Painel de Alertas Ativos */
+        .active-alerts-container {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding-right: 0.25rem;
+        }
+
+        .alert-entry {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slide-in {
+            from { transform: translateX(-10px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .alert-entry-text {
+            color: #fca5a5;
+        }
+
+        .alert-dismiss {
+            background: transparent;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            padding: 0.1rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .alert-dismiss:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .empty-alerts {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 1rem;
+            border: 1px dashed rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 2rem;
+        }
+
+        footer a {
+            color: #38bdf8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <header>
-        <h1>📡 Industrial IoT Platform</h1>
-        <p>Industrial IoT data platform for sensor monitoring, analytics and alerting — designed for biogas plants, manufacturing and energy operations.</p>
-        <a href="https://github.com/Brunnobach/industrial-iot-platform" class="btn">View on GitHub</a>
-    </header>
-
     <div class="container">
-        <div class="section">
-            <h2>What this project demonstrates</h2>
-            <div class="badges">
-                <span class="badge">MQTT</span>
-                <span class="badge">InfluxDB</span>
-                <span class="badge">FastAPI</span>
-                <span class="badge">Grafana</span>
-                <span class="badge">Docker</span>
-                <span class="badge">Time-Series</span>
+        <!-- Header -->
+        <header>
+            <div class="header-title">
+                <i data-lucide="cpu" style="color: #38bdf8;"></i>
+                <h1>Industrial IoT Gateway</h1>
+                <span class="tag">v1.0.0</span>
             </div>
-            <p>A complete end-to-end IoT system: simulated sensors publish data via MQTT, a time-series database stores it, a FastAPI service provides queries and alerts, and Grafana visualizes everything.</p>
+            <div class="controls">
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="btn-sim" onclick="setMode('sim')">
+                        <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i>
+                        Simulação
+                    </button>
+                    <button class="mode-btn" id="btn-gateway" onclick="setMode('gateway')">
+                        <i data-lucide="server" style="width: 14px; height: 14px;"></i>
+                        Gateway Real
+                    </button>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot simulating" id="status-dot"></div>
+                    <span id="status-text">Simulando Local</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Grid de Cards de Sensores -->
+        <div class="sensor-grid">
+            <!-- Temperatura -->
+            <div class="sensor-card" id="card-temperature" style="--theme-color: var(--color-temp);">
+                <div class="sensor-header">
+                    <div class="sensor-info">
+                        <h3>Temperatura</h3>
+                        <div class="sensor-id">sensor_001</div>
+                    </div>
+                    <div class="sensor-icon-wrapper">
+                        <i data-lucide="thermometer"></i>
+                    </div>
+                </div>
+                <div class="sensor-value-container">
+                    <span class="sensor-value" id="val-temperature">--.-</span>
+                    <span class="sensor-unit">°C</span>
+                </div>
+                <svg class="sensor-sparkline" id="spark-temperature" viewBox="0 0 100 45">
+                    <path d="M0,45 L100,45" class="sparkline-background" fill="none"></path>
+                    <path d="" id="path-temperature"></path>
+                </svg>
+                <div class="sensor-footer">
+                    <span>Limite: <span id="limit-val-temperature">80</span>°C</span>
+                    <span class="sensor-status" id="status-temperature">
+                        <span class="status-ok">● normal</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Pressão -->
+            <div class="sensor-card" id="card-pressure" style="--theme-color: var(--color-press);">
+                <div class="sensor-header">
+                    <div class="sensor-info">
+                        <h3>Pressão</h3>
+                        <div class="sensor-id">sensor_002</div>
+                    </div>
+                    <div class="sensor-icon-wrapper">
+                        <i data-lucide="gauge"></i>
+                    </div>
+                </div>
+                <div class="sensor-value-container">
+                    <span class="sensor-value" id="val-pressure">--.-</span>
+                    <span class="sensor-unit">bar</span>
+                </div>
+                <svg class="sensor-sparkline" id="spark-pressure" viewBox="0 0 100 45">
+                    <path d="" id="path-pressure"></path>
+                </svg>
+                <div class="sensor-footer">
+                    <span>Limite: <span id="limit-val-pressure">2.8</span> bar</span>
+                    <span class="sensor-status" id="status-pressure">
+                        <span class="status-ok">● normal</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- pH -->
+            <div class="sensor-card" id="card-ph" style="--theme-color: var(--color-ph);">
+                <div class="sensor-header">
+                    <div class="sensor-info">
+                        <h3>Acidez (pH)</h3>
+                        <div class="sensor-id">sensor_003</div>
+                    </div>
+                    <div class="sensor-icon-wrapper">
+                        <i data-lucide="droplet"></i>
+                    </div>
+                </div>
+                <div class="sensor-value-container">
+                    <span class="sensor-value" id="val-ph">--.-</span>
+                    <span class="sensor-unit">pH</span>
+                </div>
+                <svg class="sensor-sparkline" id="spark-ph" viewBox="0 0 100 45">
+                    <path d="" id="path-ph"></path>
+                </svg>
+                <div class="sensor-footer">
+                    <span>Limite: &lt; <span id="limit-val-ph">6.5</span> pH</span>
+                    <span class="sensor-status" id="status-ph">
+                        <span class="status-ok">● normal</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Vazão -->
+            <div class="sensor-card" id="card-flow" style="--theme-color: var(--color-flow);">
+                <div class="sensor-header">
+                    <div class="sensor-info">
+                        <h3>Vazão</h3>
+                        <div class="sensor-id">sensor_004</div>
+                    </div>
+                    <div class="sensor-icon-wrapper">
+                        <i data-lucide="wind"></i>
+                    </div>
+                </div>
+                <div class="sensor-value-container">
+                    <span class="sensor-value" id="val-flow">--.-</span>
+                    <span class="sensor-unit">m³/h</span>
+                </div>
+                <svg class="sensor-sparkline" id="spark-flow" viewBox="0 0 100 45">
+                    <path d="" id="path-flow"></path>
+                </svg>
+                <div class="sensor-footer">
+                    <span>Limite: <span id="limit-val-flow">15.0</span> m³/h</span>
+                    <span class="sensor-status" id="status-flow">
+                        <span class="status-ok">● normal</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Vibração -->
+            <div class="sensor-card" id="card-vibration" style="--theme-color: var(--color-vib);">
+                <div class="sensor-header">
+                    <div class="sensor-info">
+                        <h3>Vibração</h3>
+                        <div class="sensor-id">sensor_005</div>
+                    </div>
+                    <div class="sensor-icon-wrapper">
+                        <i data-lucide="activity"></i>
+                    </div>
+                </div>
+                <div class="sensor-value-container">
+                    <span class="sensor-value" id="val-vibration">--.-</span>
+                    <span class="sensor-unit">mm/s</span>
+                </div>
+                <svg class="sensor-sparkline" id="spark-vibration" viewBox="0 0 100 45">
+                    <path d="" id="path-vibration"></path>
+                </svg>
+                <div class="sensor-footer">
+                    <span>Limite: <span id="limit-val-vibration">4.5</span> mm/s</span>
+                    <span class="sensor-status" id="status-vibration">
+                        <span class="status-ok">● normal</span>
+                    </span>
+                </div>
+            </div>
         </div>
 
-        <div class="section">
-            <h2>Architecture</h2>
-            <pre>
-Sensors (simulated) → MQTT Broker → InfluxDB → FastAPI → Grafana Dashboard + Alerts
-            </pre>
-        </div>
+        <!-- Dashboard Body: Sidebar + Main Content -->
+        <div class="dashboard-body">
+            <!-- Sidebar -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="bell" style="width: 18px; height: 18px; color: var(--color-danger);"></i>
+                        Alertas Ativos
+                    </div>
+                </div>
+                <div class="active-alerts-container" id="active-alerts">
+                    <div class="empty-alerts">Sem alertas ativos no momento</div>
+                </div>
 
-        <div class="section">
-            <h2>Quick Start</h2>
-            <pre><code>git clone https://github.com/Brunnobach/industrial-iot-platform.git
+                <div class="panel-header" style="margin-top: 1rem;">
+                    <div class="panel-title">
+                        <i data-lucide="sliders" style="width: 18px; height: 18px; color: #38bdf8;"></i>
+                        Limites de Alarme
+                    </div>
+                </div>
+                <div class="threshold-list">
+                    <!-- Temp Slider -->
+                    <div class="threshold-item">
+                        <div class="threshold-item-header">
+                            <span>Temperatura (°C)</span>
+                            <span class="sensor-id">> Acima</span>
+                        </div>
+                        <div class="threshold-slider-container">
+                            <input type="range" class="threshold-slider" id="slider-temperature" min="50" max="110" value="80" oninput="updateThreshold('temperature', this.value)">
+                            <span class="threshold-value" id="label-temperature">80 °C</span>
+                        </div>
+                    </div>
+                    <!-- Press Slider -->
+                    <div class="threshold-item">
+                        <div class="threshold-item-header">
+                            <span>Pressão (bar)</span>
+                            <span class="sensor-id">> Acima</span>
+                        </div>
+                        <div class="threshold-slider-container">
+                            <input type="range" class="threshold-slider" id="slider-pressure" min="1.0" max="4.0" step="0.1" value="2.8" oninput="updateThreshold('pressure', this.value)">
+                            <span class="threshold-value" id="label-pressure">2.8 bar</span>
+                        </div>
+                    </div>
+                    <!-- pH Slider -->
+                    <div class="threshold-item">
+                        <div class="threshold-item-header">
+                            <span>Acidez (pH)</span>
+                            <span class="sensor-id">&lt; Abaixo</span>
+                        </div>
+                        <div class="threshold-slider-container">
+                            <input type="range" class="threshold-slider" id="slider-ph" min="5.0" max="9.0" step="0.1" value="6.5" oninput="updateThreshold('ph', this.value)">
+                            <span class="threshold-value" id="label-ph">6.5 pH</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal Console -->
+                <div class="panel-header" style="margin-top: 1rem;">
+                    <div class="panel-title">
+                        <i data-lucide="terminal" style="width: 18px; height: 18px; color: #10b981;"></i>
+                        Logs do Sistema
+                    </div>
+                </div>
+                <div class="terminal-container">
+                    <div class="terminal-logs" id="terminal-logs">
+                        <div class="log-entry">
+                            <span class="log-time">[18:54:49]</span>
+                            <span class="log-info">Info:</span>
+                            <span class="log-text">Painel IoT carregado com sucesso.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="panel">
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('analytics')">
+                        <i data-lucide="line-chart" style="width: 16px; height: 16px;"></i>
+                        Histórico Analítico
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('arch')">
+                        <i data-lucide="git-branch" style="width: 16px; height: 16px;"></i>
+                        Arquitetura & Config
+                    </button>
+                </div>
+
+                <!-- Tab: Analytics -->
+                <div class="tab-pane active" id="tab-analytics">
+                    <div class="chart-controls">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Métrica:</label>
+                        <select class="chart-select" id="metric-select">
+                            <option value="temperature">Temperatura</option>
+                            <option value="pressure">Pressão</option>
+                            <option value="ph">Acidez (pH)</option>
+                            <option value="flow">Vazão</option>
+                            <option value="vibration">Vibração</option>
+                        </select>
+
+                        <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-left: 0.5rem;">Janela:</label>
+                        <select class="chart-select" id="window-select">
+                            <option value="15">Últimos 15 min</option>
+                            <option value="60" selected>Última 1 hora</option>
+                            <option value="360">Últimas 6 horas</option>
+                            <option value="1440">Últimas 24 horas</option>
+                        </select>
+
+                        <button class="btn-query" onclick="loadHistoricalData()">
+                            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                            Atualizar Gráfico
+                        </button>
+                    </div>
+
+                    <div class="chart-wrapper">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab: Architecture -->
+                <div class="tab-pane" id="tab-arch">
+                    <div class="doc-section">
+                        <h2>Estrutura de Componentes</h2>
+                        <p>Esta plataforma demonstra uma arquitetura robusta de ponta a ponta para captura de telemetria industrial:</p>
+                        
+                        <div class="code-block">
+Sensores (Simulação) ─▶ MQTT Broker (Mosquitto) ─▶ Ingestão Python ─▶ InfluxDB ─▶ API FastAPI ─▶ Painel / Grafana
+                        </div>
+
+                        <h2>Stack Tecnológica</h2>
+                        <div class="tech-list">
+                            <div class="tech-card">
+                                <strong>FastAPI / Python 3.11</strong>
+                                <span>API de Baixa Latência</span>
+                            </div>
+                            <div class="tech-card">
+                                <strong>InfluxDB 2.7</strong>
+                                <span>Banco de Dados Temporal</span>
+                            </div>
+                            <div class="tech-card">
+                                <strong>Eclipse Mosquitto 2.0</strong>
+                                <span>MQTT Broker Websockets</span>
+                            </div>
+                            <div class="tech-card">
+                                <strong>Docker Compose</strong>
+                                <span>Orquestração com Healthchecks</span>
+                            </div>
+                        </div>
+
+                        <h2>Início Rápido Local</h2>
+                        <p>Para executar a infraestrutura física completa localmente em sua máquina:</p>
+                        <div class="code-block">
+git clone https://github.com/Brunnobach/industrial-iot-platform.git
 cd industrial-iot-platform
-docker-compose up -d</code></pre>
-            <p>Then access Grafana at <code>http://localhost:3000</code> and API docs at <code>http://localhost:8000/docs</code>.</p>
+docker-compose up -d
+                        </div>
+                        <p>O painel buscará os dados diretamente do contêiner e escutará no broker local no modo <strong>Gateway Real</strong>.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="section">
-            <h2>About the author</h2>
-            <p>Built by <strong>Brunno Bachmann</strong>, CTO and engineering leader with 6+ years in renewable energy, now building industrial data systems.</p>
-            <a href="https://www.linkedin.com/in/brunno-bachmann-865429173">LinkedIn</a> · 
-            <a href="https://github.com/Brunnobach">GitHub</a>
-        </div>
+        <footer>
+            <p>Criado por <strong><a href="https://www.linkedin.com/in/brunno-bachmann-865429173" target="_blank">Brunno Bachmann</a></strong> · Código disponível no <a href="https://github.com/Brunnobach/industrial-iot-platform" target="_blank">GitHub Repository</a></p>
+        </footer>
     </div>
 
-    <footer>
-        <p>© 2026 Brunno Bachmann · <a href="https://github.com/Brunnobach/industrial-iot-platform">GitHub Repository</a></p>
-    </footer>
+    <!-- Script de Comportamento Dinâmico -->
+    <script>
+        // Configurações Globais dos Sensores
+        const sensorsConfig = {
+            temperature: { id: "sensor_001", name: "Temperatura", base: 75.0, var: 4.0, unit: "°C", threshold: 80.0, operator: "above" },
+            pressure: { id: "sensor_002", name: "Pressão", base: 2.5, var: 0.15, unit: "bar", threshold: 2.8, operator: "above" },
+            ph: { id: "sensor_003", name: "Acidez (pH)", base: 7.0, var: 0.2, unit: "pH", threshold: 6.5, operator: "below" },
+            flow: { id: "sensor_004", name: "Vazão", base: 12.0, var: 1.2, unit: "m³/h", threshold: 15.0, operator: "above" },
+            vibration: { id: "sensor_005", name: "Vibração", base: 3.0, var: 0.6, unit: "mm/s", threshold: 4.5, operator: "above" }
+        };
+
+        // Estado do Dashboard
+        let currentMode = 'sim'; // 'sim' ou 'gateway'
+        let localHistory = {}; // Armazena pontos para o gráfico e sparklines
+        let activeAlerts = new Set();
+        let chartInstance = null;
+        let mqttClient = null;
+        let gatewayInterval = null;
+
+        // Inicializar histórico
+        Object.keys(sensorsConfig).forEach(metric => {
+            localHistory[metric] = [];
+            // Pré-popular com valores iniciais normais para as sparklines começarem bonitas
+            for (let i = 0; i < 20; i++) {
+                const conf = sensorsConfig[metric];
+                localHistory[metric].push({
+                    value: round(conf.base + (Math.random() - 0.5) * conf.var, 2),
+                    timestamp: Date.now() - (20 - i) * 5000
+                });
+            }
+        });
+
+        // Configuração Inicial ao Carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initChart();
+            startSimulationLoop();
+            addLog("info", "Sistema de simulação do painel iniciado.");
+            
+            // Desenhar sparklines iniciais
+            Object.keys(sensorsConfig).forEach(metric => {
+                updateSparkline(metric);
+            });
+        });
+
+        // Função de Arredondamento Auxiliar
+        function round(val, precision) {
+            return Number(val.toFixed(precision));
+        }
+
+        // Alterar Modo de Conexão (Interface)
+        function setMode(mode) {
+            if (mode === currentMode) return;
+            
+            document.getElementById('btn-sim').classList.toggle('active', mode === 'sim');
+            document.getElementById('btn-gateway').classList.toggle('active', mode === 'gateway');
+            
+            currentMode = mode;
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            if (mode === 'sim') {
+                dot.className = 'status-dot simulating';
+                text.innerText = 'Simulando Local';
+                addLog("info", "Modo Simulação local ativado.");
+                
+                // Parar integrações de gateway se houverem
+                stopGatewayConnection();
+                startSimulationLoop();
+            } else {
+                dot.className = 'status-dot';
+                text.innerText = 'Conectando Gateway...';
+                addLog("info", "Tentando conectar ao Gateway de Borda Local...");
+                
+                // Parar loop de simulação
+                stopSimulationLoop();
+                initGatewayConnection();
+            }
+        }
+
+        // Adicionar Log ao Terminal na UI
+        function addLog(type, text) {
+            const logsContainer = document.getElementById('terminal-logs');
+            const timeStr = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'log-time';
+            timeSpan.innerText = `[${timeStr}]`;
+            
+            const typeSpan = document.createElement('span');
+            typeSpan.className = `log-${type}`;
+            typeSpan.innerText = type.charAt(0).toUpperCase() + type.slice(1) + ':';
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'log-text';
+            textSpan.innerText = text;
+            
+            entry.appendChild(timeSpan);
+            entry.appendChild(typeSpan);
+            entry.appendChild(textSpan);
+            
+            logsContainer.appendChild(entry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+            
+            // Limitar a 50 logs no DOM
+            while (logsContainer.children.length > 50) {
+                logsContainer.removeChild(logsContainer.firstChild);
+            }
+        }
+
+        // Alternar Abas (Dashboard Main Area)
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+
+            // Encontrar o botão certo
+            const eventTarget = event ? event.currentTarget : null;
+            if (eventTarget) {
+                eventTarget.classList.add('active');
+            } else {
+                // Fallback pelo id da aba
+                document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+            }
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            if (tabId === 'analytics') {
+                setTimeout(() => {
+                    if (chartInstance) chartInstance.resize();
+                }, 50);
+            }
+        }
+
+        // Gerenciamento de Limites (Sliders)
+        function updateThreshold(metric, value) {
+            sensorsConfig[metric].threshold = Number(value);
+            document.getElementById(`label-${metric}`).innerText = `${value} ${sensorsConfig[metric].unit}`;
+            document.getElementById(`limit-val-${metric}`).innerText = value;
+            addLog("info", `Limite de alerta para ${sensorsConfig[metric].name} atualizado para ${value} ${sensorsConfig[metric].unit}`);
+            
+            // Reavaliar imediatamente o valor atual contra o novo limite
+            if (localHistory[metric].length > 0) {
+                const lastPoint = localHistory[metric][localHistory[metric].length - 1];
+                evaluateThreshold(metric, lastPoint.value);
+            }
+        }
+
+        // Loop de Simulação de Sensores (Frontend Local)
+        let simulationInterval = null;
+        function startSimulationLoop() {
+            if (simulationInterval) clearInterval(simulationInterval);
+            simulationInterval = setInterval(() => {
+                Object.keys(sensorsConfig).forEach(metric => {
+                    const conf = sensorsConfig[metric];
+                    // Gerar flutuação aleatória gaussiana realista
+                    const noise = (Math.random() - 0.5) * 2; // Uniforme rápida
+                    const walk = (Math.random() - 0.5) * conf.var * 0.4;
+                    let lastValue = localHistory[metric].length > 0 ? localHistory[metric][localHistory[metric].length - 1].value : conf.base;
+                    
+                    // Suavizar o retorno à média base se estiver muito longe
+                    const deviation = lastValue - conf.base;
+                    const gravity = deviation * -0.15;
+
+                    let newVal = round(lastValue + walk + gravity + noise * 0.1, 2);
+                    
+                    // Forçar limites físicos razoáveis
+                    if (metric === 'ph') newVal = Math.max(0, Math.min(14, newVal));
+                    if (metric === 'flow') newVal = Math.max(0, newVal);
+                    if (metric === 'vibration') newVal = Math.max(0, newVal);
+
+                    onNewTelemetry(metric, newVal, Date.now());
+                });
+            }, 2000);
+        }
+
+        function stopSimulationLoop() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+            }
+        }
+
+        // Manipular a entrada de um novo dado de telemetria
+        function onNewTelemetry(metric, value, timestamp) {
+            // Atualizar UI do valor atual
+            const valEl = document.getElementById(`val-${metric}`);
+            valEl.innerText = value.toFixed(metric === 'pressure' || metric === 'vibration' ? 2 : 1);
+            
+            // Adicionar ao histórico local
+            localHistory[metric].push({ value, timestamp });
+            
+            // Manter apenas as últimas 30 leituras em memória para sparkline
+            if (localHistory[metric].length > 30) {
+                localHistory[metric].shift();
+            }
+            
+            // Atualizar Sparkline
+            updateSparkline(metric);
+            
+            // Checar Limites
+            evaluateThreshold(metric, value);
+            
+            // Atualizar o gráfico histórico dinamicamente se a métrica selecionada for a atual
+            const selectedMetric = document.getElementById('metric-select').value;
+            if (selectedMetric === metric && chartInstance) {
+                // Atualizar gráfico em tempo real de forma leve
+                updateChartDataInline(value, timestamp);
+            }
+        }
+
+        // Avaliar limites e gerar alertas
+        function evaluateThreshold(metric, value) {
+            const conf = sensorsConfig[metric];
+            const card = document.getElementById(`card-${metric}`);
+            const statusLabel = document.getElementById(`status-${metric}`);
+            let isBreach = false;
+
+            if (conf.operator === "above" && value > conf.threshold) {
+                isBreach = true;
+            } else if (conf.operator === "below" && value < conf.threshold) {
+                isBreach = true;
+            }
+
+            const alertId = `${metric}_breach`;
+
+            if (isBreach) {
+                card.classList.add('alert-breach');
+                statusLabel.innerHTML = '<span class="status-alert">● ALERTA</span>';
+                
+                if (!activeAlerts.has(alertId)) {
+                    activeAlerts.add(alertId);
+                    triggerVisualAlert(metric, value, conf.threshold);
+                }
+            } else {
+                card.classList.remove('alert-breach');
+                statusLabel.innerHTML = '<span class="status-ok">● normal</span>';
+                
+                if (activeAlerts.has(alertId)) {
+                    activeAlerts.delete(alertId);
+                    removeVisualAlert(alertId);
+                    addLog("info", `Parâmetro de ${conf.name} retornou ao nível seguro: ${value} ${conf.unit}`);
+                }
+            }
+        }
+
+        // Criar Alerta visual na lista de alertas ativos
+        function triggerVisualAlert(metric, value, threshold) {
+            const conf = sensorsConfig[metric];
+            const alertsContainer = document.getElementById('active-alerts');
+            const alertId = `${metric}_breach`;
+            
+            // Remover "Sem alertas" se existir
+            const emptyMsg = alertsContainer.querySelector('.empty-alerts');
+            if (emptyMsg) emptyMsg.remove();
+
+            // Verificar se o elemento já existe antes de recriar
+            if (document.getElementById(`alert-${alertId}`)) return;
+
+            const alertEl = document.createElement('div');
+            alertEl.className = 'alert-entry';
+            alertEl.id = `alert-${alertId}`;
+            
+            const textEl = document.createElement('span');
+            textEl.className = 'alert-entry-text';
+            textEl.innerHTML = `<strong>${conf.name}</strong> crítico! ${value.toFixed(1)} ${conf.unit} (Limite: ${threshold} ${conf.unit})`;
+            
+            const dismissBtn = document.createElement('button');
+            dismissBtn.className = 'alert-dismiss';
+            dismissBtn.innerHTML = '<i data-lucide="x" style="width: 14px; height: 14px;"></i>';
+            dismissBtn.onclick = () => {
+                alertEl.remove();
+                addLog("info", `Alerta de ${conf.name} silenciado na lista.`);
+                // Verificar se a lista esvaziou
+                if (alertsContainer.children.length === 0) {
+                    alertsContainer.innerHTML = '<div class="empty-alerts">Sem alertas ativos no momento</div>';
+                }
+            };
+
+            alertEl.appendChild(textEl);
+            alertEl.appendChild(dismissBtn);
+            alertsContainer.prepend(alertEl);
+            
+            lucide.createIcons({ node: alertEl });
+            
+            addLog("error", `Limite crítico ultrapassado em ${conf.name}: ${value.toFixed(2)} ${conf.unit} (Limite: ${threshold})`);
+        }
+
+        function removeVisualAlert(alertId) {
+            const alertEl = document.getElementById(`alert-${alertId}`);
+            if (alertEl) {
+                alertEl.remove();
+                
+                const alertsContainer = document.getElementById('active-alerts');
+                if (alertsContainer.children.length === 0) {
+                    alertsContainer.innerHTML = '<div class="empty-alerts">Sem alertas ativos no momento</div>';
+                }
+            }
+        }
+
+        // Desenhar Sparkline em SVG
+        function updateSparkline(metric) {
+            const points = localHistory[metric];
+            if (points.length < 2) return;
+
+            const pathEl = document.getElementById(`path-${metric}`);
+            
+            // Normalizar valores para a caixa de visualização 100 x 45
+            const values = points.map(p => p.value);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const range = max - min === 0 ? 1 : max - min;
+
+            const width = 100;
+            const height = 40;
+            const padding = 2;
+
+            const pathPoints = points.map((p, index) => {
+                const x = (index / (points.length - 1)) * width;
+                // Inverter y porque 0,0 é no topo esquerdo do SVG
+                const y = height - ((p.value - min) / range) * (height - padding * 2) - padding;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            });
+
+            const pathD = `M ${pathPoints.join(' L ')}`;
+            pathEl.setAttribute('d', pathD);
+        }
+
+        // --- INTEGRAÇÃO COM GATEWAY REAL (FASTAPI + MQTT) ---
+        function initGatewayConnection() {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            // 1. Tentar estabelecer conexão MQTT sobre WebSockets
+            // Mosquitto expõe websockets na porta 9001 no docker-compose
+            const brokerHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'localhost' : window.location.hostname;
+            const clientId = "web-client-" + Math.random().toString(36).substring(7);
+            
+            addLog("info", `Iniciando cliente MQTT no broker ws://${brokerHost}:9001`);
+            mqttClient = new Paho.MQTT.Client(brokerHost, 9001, clientId);
+
+            mqttClient.onConnectionLost = (responseObject) => {
+                if (responseObject.errorCode !== 0) {
+                    addLog("warn", "Conexão perdida com o broker MQTT: " + responseObject.errorMessage);
+                    fallbackToSim("Perda de sinal MQTT");
+                }
+            };
+
+            mqttClient.onMessageArrived = (message) => {
+                try {
+                    const payload = JSON.parse(message.payloadString);
+                    // O broker publica em factory/sensors/{measurement}/{sensor_id}
+                    const metric = payload.measurement;
+                    if (sensorsConfig[metric]) {
+                        onNewTelemetry(metric, payload.value, payload.timestamp * 1000);
+                    }
+                } catch (e) {
+                    console.error("Erro ao decodificar payload do broker:", e);
+                }
+            };
+
+            mqttClient.connect({
+                onSuccess: () => {
+                    addLog("info", "Conectado ao broker MQTT via WebSockets!");
+                    mqttClient.subscribe("factory/sensors/#", { qos: 1 });
+                    
+                    dot.className = 'status-dot online';
+                    text.innerText = 'Online (Edge)';
+                    
+                    // Iniciar requisições periódicas adicionais à API FastAPI para logs e redundância
+                    startGatewayPoll();
+                },
+                onFailure: (message) => {
+                    addLog("error", "Falha de conexão com MQTT Broker: " + message.errorMessage);
+                    fallbackToSim("MQTT indisponível");
+                },
+                useSSL: false,
+                timeout: 3
+            });
+        }
+
+        function startGatewayPoll() {
+            // Buscar dados históricos iniciais
+            loadHistoricalData();
+            
+            // Fazer um poll a cada 5 segundos na rota de saúde e alertas
+            gatewayInterval = setInterval(() => {
+                // Checar saúde da API
+                fetch('http://localhost:8000/health')
+                    .then(res => {
+                        if (!res.ok) throw new Error("API Offline");
+                        return res.json();
+                    })
+                    .then(health => {
+                        if (health.influx !== 'connected') {
+                            addLog("warn", "API FastAPI operacional, mas InfluxDB reporta desconexão!");
+                        }
+                    })
+                    .catch(err => {
+                        addLog("warn", "Poller de API falhou: " + err.message);
+                    });
+            }, 6000);
+        }
+
+        function stopGatewayConnection() {
+            if (mqttClient && mqttClient.isConnected()) {
+                mqttClient.disconnect();
+                addLog("info", "Desconectado do broker MQTT.");
+            }
+            mqttClient = null;
+
+            if (gatewayInterval) {
+                clearInterval(gatewayInterval);
+                gatewayInterval = null;
+            }
+        }
+
+        function fallbackToSim(reason) {
+            addLog("warn", `Causa: ${reason}. Retornando automaticamente ao modo simulação embutido.`);
+            setMode('sim');
+        }
+
+        // --- CONFIGURAÇÃO E MANIPULAÇÃO DE GRÁFICOS (CHART.JS) ---
+        function initChart() {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            
+            // Criar gradiente para a linha
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+            gradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Leitura',
+                        data: [],
+                        borderColor: '#38bdf8',
+                        borderWidth: 2,
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#020617',
+                        pointHoverRadius: 6,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            display: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans', size: 10 },
+                                callback: function(value) {
+                                    // Transformar timestamp UNIX em formato hora
+                                    return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans' }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Carregar dados iniciais no gráfico
+            loadHistoricalData();
+        }
+
+        function loadHistoricalData() {
+            const metric = document.getElementById('metric-select').value;
+            const windowMin = Number(document.getElementById('window-select').value);
+            const conf = sensorsConfig[metric];
+
+            if (!chartInstance) return;
+
+            // Mudar a cor de foco do dataset dependendo do sensor escolhido
+            const color = getComputedStyle(document.documentElement).getPropertyValue(`--color-${metric}`).trim() || '#38bdf8';
+            chartInstance.data.datasets[0].borderColor = color;
+            
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, color + '50'); // 30% opacidade
+            gradient.addColorStop(1, color + '00'); // 0% opacidade
+            chartInstance.data.datasets[0].backgroundColor = gradient;
+            chartInstance.data.datasets[0].pointBackgroundColor = color;
+
+            if (currentMode === 'sim') {
+                // Alimentar com dados simulados armazenados na memória
+                const now = Date.now();
+                const filterTime = now - windowMin * 60 * 1000;
+                
+                // Gerar pontos adicionais simulados se o histórico em memória for curto
+                let points = localHistory[metric].filter(p => p.timestamp >= filterTime);
+                
+                // Se precisamos de mais dados para parecer uma hora inteira, nós populamos retroativamente
+                if (points.length < 50) {
+                    const extraPoints = [];
+                    const pointsNeeded = 60;
+                    const step = (windowMin * 60 * 1000) / pointsNeeded;
+                    for (let i = pointsNeeded; i > 0; i--) {
+                        const t = now - i * step;
+                        extraPoints.push({
+                            value: round(conf.base + (Math.random() - 0.5) * conf.var + Math.sin(t/50000)*conf.var*0.5, 2),
+                            timestamp: t
+                        });
+                    }
+                    points = extraPoints.concat(points);
+                }
+
+                const chartPoints = points.map(p => ({ x: p.timestamp, y: p.value }));
+                chartInstance.data.datasets[0].data = chartPoints;
+                
+                // Atualizar escala e desenhar
+                chartInstance.update();
+                addLog("info", `Dados simulados de ${conf.name} atualizados no gráfico.`);
+            } else {
+                // Fazer chamada real para a rota /sensors/history do FastAPI
+                const url = `http://localhost:8000/sensors/history?measurement=${metric}&minutes=${windowMin}`;
+                addLog("info", `Buscando histórico real em: ${url}`);
+                
+                fetch(url)
+                    .then(res => {
+                        if (!res.ok) throw new Error("Erro de resposta da API");
+                        return res.json();
+                    })
+                    .then(data => {
+                        if (data.length === 0) {
+                            addLog("warn", `Nenhum dado real retornado para ${conf.name} nos últimos ${windowMin} minutos.`);
+                            chartInstance.data.datasets[0].data = [];
+                            chartInstance.update();
+                            return;
+                        }
+
+                        const chartPoints = data.map(record => ({
+                            x: new Date(record.timestamp).getTime(),
+                            y: record.value
+                        }));
+                        
+                        chartInstance.data.datasets[0].data = chartPoints;
+                        chartInstance.update();
+                        addLog("info", `Gráfico de ${conf.name} atualizado com ${data.length} registros reais.`);
+                    })
+                    .catch(err => {
+                        addLog("error", `Falha ao carregar histórico da API: ${err.message}`);
+                    });
+            }
+        }
+
+        // Adiciona um único ponto no final do gráfico em tempo real (evita redesenhar tudo)
+        function updateChartDataInline(value, timestamp) {
+            const chartData = chartInstance.data.datasets[0].data;
+            chartData.push({ x: timestamp, y: value });
+            
+            // Limitar número de pontos visíveis dependendo da janela selecionada
+            const windowMin = Number(document.getElementById('window-select').value);
+            const limitTime = Date.now() - windowMin * 60 * 1000;
+            
+            while (chartData.length > 0 && chartData[0].x < limitTime) {
+                chartData.shift();
+            }
+
+            chartInstance.update('none'); // Update sem animação agressiva
+        }
+
+        // Adicionar eventos para mudanças de métrica na aba analítica
+        document.getElementById('metric-select').addEventListener('change', loadHistoricalData);
+        document.getElementById('window-select').addEventListener('change', loadHistoricalData);
+    </script>
 </body>
 </html>

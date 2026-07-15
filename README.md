@@ -93,11 +93,12 @@ cd industrial-iot-platform
 docker-compose up -d
 ```
 
-Wait ~20 seconds for services to start, then open:
+Wait ~20 seconds for all services to start, then access:
 
-- **Grafana:** http://localhost:3000 (admin/admin)
-- **FastAPI docs:** http://localhost:8000/docs
-- **MQTT:** localhost:1883
+- **Interactive Dashboard:** Open the `index.html` file at the root of the project directly in your web browser (simply double-click it!).
+- **Grafana Visualization:** [http://localhost:3000](http://localhost:3000) (Credentials: `admin`/`admin`)
+- **FastAPI Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **MQTT Broker Port:** `localhost:1883` (*Note: This is a binary TCP protocol port for MQTT clients, not an HTTP web server. Opening it in a browser will return an empty response error like `NS_ERROR_NET_EMPTY_RESPONSE`.*)
 
 ---
 
