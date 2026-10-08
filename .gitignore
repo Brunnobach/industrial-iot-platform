@@ -1,20 +1,48 @@
+# Secrets and local overrides
+.env
+.env.local
+.env.*.local
+docker-compose.override.yml
+
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+*.egg
 *.egg-info/
-.env
-.venv/
-venv/
-*.log
-*.sqlite3
-.DS_Store
-.idea/
-.vscode/
-node_modules/
-.mypy_cache/
-.pytest_cache/
-htmlcov/
+.eggs/
 dist/
 build/
-.mosquitto/data/
-.mosquitto/log/
+.venv/
+venv/
+env/
+.Python
+
+# Tests and coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.cache/
+
+# Logs and local data
+*.log
+*.sqlite3
 *.db
+mosquitto/data/
+mosquitto/log/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Node (landing page tooling, if added)
+node_modules/
