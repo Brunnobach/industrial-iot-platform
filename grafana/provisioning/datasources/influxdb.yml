@@ -8,10 +8,10 @@ datasources:
     basicAuth: false
     jsonData:
       version: Flux
-      organization: iiot-org
-      defaultBucket: iiot-bucket
+      organization: ${INFLUX_ORG}
+      defaultBucket: ${INFLUX_BUCKET}
       tlsSkipVerify: true
     secureJsonData:
-      token: iiot-token
+      token: ${INFLUX_TOKEN}
     isDefault: true
     editable: false
